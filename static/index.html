@@ -1,0 +1,24 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>AgroLogistics AI — Central Logística</title>
+<style>body{font-family:system-ui;background:#0f172a;color:#e2e8f0;margin:0;padding:20px}h1{color:#4ade80}.grid{display:flex;gap:16px;flex-wrap:wrap}.card{background:#1e293b;border-radius:12px;padding:16px;min-width:260px}canvas{background:#020617;border-radius:8px}button{background:#22c55e;border:0;padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:600}select,input{padding:7px;border-radius:6px}li{font-size:13px}</style></head>
+<body><h1>🌾 AgroLogistics AI — Monitoramento em Tempo Real</h1>
+<div class="grid"><div class="card"><h3>Instalação (Setores A–G)</h3><canvas id="cv" width="600" height="400"></canvas>
+<p><button onclick="receber()">📥 Receber carga</button> <select id="prod"><option>SOJA</option><option>MILHO</option><option>CAFE</option><option>TRIGO</option><option>ARROZ</option><option>ALGODAO</option><option>FERTILIZANTE</option><option>INSUMO</option></select> <input id="qtd" type="number" value="10" style="width:60px">
+<button onclick="pedido()">📦 Criar pedido</button></p><p id="msg"></p></div>
+<div class="card"><h3>Indicadores</h3><div id="kpi"></div><h3>Estoque</h3><div id="est"></div><h3>Alertas</h3><div id="al"></div></div>
+<div class="card"><h3>Robôs (AMR)</h3><div id="rob"></div><h3>Pedidos</h3><div id="ped"></div><h3>Atividades</h3><ul id="ev"></ul></div></div>
+<script>
+const S={A:[1,1,12,10,'#38bdf8','Recebimento'],B:[15,1,13,10,'#a78bfa','Classificação'],C:[30,1,13,10,'#f472b6','Separação'],D:[15,14,28,11,'#34d399','Armazenamento'],E:[45,14,13,11,'#fbbf24','Prep. Pedidos'],F:[45,27,13,11,'#fb7185','Carregamento'],G:[30,27,13,11,'#60a5fa','Expedição']};
+async function receber(){let r=await(await fetch(`/api/receber?produto=${prod.value}&qtd=${qtd.value}`)).json();msg.textContent=r.ok?'Carga recebida e enviada ao armazenamento.':'Erro: '+r.erro}
+async function pedido(){let r=await(await fetch(`/api/pedido?produto=${prod.value}&qtd=${qtd.value}&cliente=Cliente Web`)).json();msg.textContent=r.ok?'Pedido separado, expedido e carregado.':'Sem estoque: '+JSON.stringify(r.faltas||r.erro)}
+async function loop(){let s=await(await fetch('/api/state')).json();let c=cv.getContext('2d');c.clearRect(0,0,600,400);
+for(let k in S){let[x,y,w,h,cor,n]=S[k];c.strokeStyle=cor;c.strokeRect(x*10,y*10,w*10,h*10);c.fillStyle=cor;c.font='11px sans-serif';c.fillText(k+' '+n,x*10+4,y*10+14)}
+c.fillStyle='#64748b';s.obstaculos.forEach(o=>c.fillRect(o[0]*10,o[1]*10,9,9));
+c.fillStyle='#4ade80';s.robos.forEach(r=>{c.beginPath();c.arc(r.pos[0]*10+5,r.pos[1]*10+5,5,0,7);c.fill()});
+kpi.innerHTML=`Tick ${s.tick} • Recebidos ${s.stats.recebidos} • Armazenados ${s.stats.armazenados} • Expedidos ${s.stats.expedidos}<br>Armazém: ${(s.utilizacao_armazem*100).toFixed(1)}% ocupado`;
+est.innerHTML=Object.entries(s.estoque).map(([k,v])=>`${k}: <b>${v}</b>`).join('<br>')||'vazio';
+al.innerHTML=s.alertas.join('<br>')||'Nenhum alerta';
+rob.innerHTML=s.robos.map(r=>`${r.id}: ${r.estado} • bateria ${r.bateria}% • tarefas ${r.tarefas}`).join('<br>');
+ped.innerHTML=s.pedidos.map(p=>`${p.id} ${p.cliente}: ${JSON.stringify(p.itens)} — ${p.status}`).join('<br>')||'nenhum';
+ev.innerHTML=s.eventos.slice(-10).map(e=>`<li>${e}</li>`).join('');}
+setInterval(loop,400);loop();
+</script></body></html>
